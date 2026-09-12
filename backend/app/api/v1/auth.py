@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.db.store import db_store
 from app.models.domain import (
-    StudentSignupRequest, LoginRequest, LoginResponse,
+    StudentSignupRequest, LoginRequest, LoginResponse, GoogleOAuthExchangePayload,
     ForgotPasswordPayload, ResetPasswordPayload, UserProfile, UserRole, MembershipStatus
 )
 from app.core.security import create_access_token
@@ -73,6 +73,53 @@ def login(payload: LoginRequest):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
+        )
+
+    token = create_access_token({"sub": user["id"]})
+    memberships = db_store.get_user_memberships(user["id"])
+
+    user_profile = UserProfile(
+        id=user["id"],
+        email=user["email"],
+        full_name=user["full_name"],
+        is_super_admin=user.get("is_super_admin", False),
+        is_verified=user.get("is_verified", True),
+        created_at=user["created_at"]
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user_profile,
+        "memberships": memberships
+    }
+
+@router.post("/oauth/google", response_model=LoginResponse)
+def google_oauth_exchange(payload: GoogleOAuthExchangePayload):
+    user = db_store.get_user_by_email(payload.email)
+    
+    if not user:
+        full_name = payload.full_name or payload.email.split("@")[0].capitalize()
+        random_pwd = str(uuid.uuid4())
+        user = db_store.create_user(
+            email=payload.email,
+            password=random_pwd,
+            full_name=full_name
+        )
+        
+        email_domain = payload.email.split("@")[-1].lower()
+        matched_univ_id = "univ-1"
+        for univ in db_store.universities.values():
+            if univ.email_domain and univ.email_domain.lower() == email_domain and univ.is_active:
+                matched_univ_id = univ.id
+                break
+        
+        db_store.create_membership(
+            user_id=user["id"],
+            university_id=matched_univ_id,
+            role=UserRole.STUDENT,
+            department="Student Community",
+            status=MembershipStatus.ACTIVE
         )
 
     token = create_access_token({"sub": user["id"]})

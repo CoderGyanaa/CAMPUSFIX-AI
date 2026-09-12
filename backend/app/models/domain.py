@@ -103,6 +103,12 @@ class LoginResponse(BaseModel):
     user: UserProfile
     memberships: List[UniversityMembership]
 
+class GoogleOAuthExchangePayload(BaseModel):
+    email: EmailStr
+    full_name: Optional[str] = None
+    provider: str = "google"
+    provider_id: Optional[str] = None
+
 class UniversityRegisterPayload(BaseModel):
     university_name: str
     official_website: str

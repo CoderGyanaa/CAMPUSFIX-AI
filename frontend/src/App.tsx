@@ -11,6 +11,7 @@ import { StudentSignupPage } from './pages/auth/StudentSignupPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { AdminLoginPage } from './pages/auth/AdminLoginPage';
+import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
 import { UniversityRegisterPage } from './pages/UniversityRegisterPage';
 import { AdminInviteAcceptPage } from './pages/AdminInviteAcceptPage';
 
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="/student/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/student/reset-password" element={<ResetPasswordPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/universities/register" element={<UniversityRegisterPage />} />
           <Route path="/register-university" element={<UniversityRegisterPage />} />
           <Route path="/accept-invite" element={<AdminInviteAcceptPage />} />
