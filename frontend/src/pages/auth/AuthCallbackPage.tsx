@@ -35,19 +35,20 @@ export const AuthCallbackPage: React.FC = () => {
           return;
         }
 
-        await processGoogleUser(session.user.email, session.user.user_metadata?.full_name);
+        await processGoogleUser(session.user.email, session.access_token, session.user.user_metadata?.full_name);
       } catch (err: any) {
         console.error('OAuth Callback Error:', err);
         setError(err.message || 'Failed to complete Google Sign-In');
       }
     };
 
-    const processGoogleUser = async (email: string, fullName?: string) => {
+    const processGoogleUser = async (email: string, supabaseToken: string, fullName?: string) => {
       const res = await fetch(`${API_BASE_URL}/api/v1/auth/oauth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
+          supabase_token: supabaseToken,
           full_name: fullName,
           provider: 'google'
         })

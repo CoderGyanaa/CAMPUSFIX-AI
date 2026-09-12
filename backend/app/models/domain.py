@@ -106,6 +106,7 @@ class LoginResponse(BaseModel):
 class GoogleOAuthExchangePayload(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
+    supabase_token: Optional[str] = None
     provider: str = "google"
     provider_id: Optional[str] = None
 

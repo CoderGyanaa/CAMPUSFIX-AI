@@ -96,24 +96,53 @@ def login(payload: LoginRequest):
 
 @router.post("/oauth/google", response_model=LoginResponse)
 def google_oauth_exchange(payload: GoogleOAuthExchangePayload):
-    user = db_store.get_user_by_email(payload.email)
+    verified_email = payload.email
+
+    # Server-Side Identity Verification: If supabase_token is provided, verify against Supabase Auth API
+    if payload.supabase_token and settings.SUPABASE_URL:
+        try:
+            import httpx
+            headers = {
+                "Authorization": f"Bearer {payload.supabase_token}",
+                "apikey": settings.SUPABASE_ANON_KEY
+            }
+            supabase_user_url = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user"
+            response = httpx.get(supabase_user_url, headers=headers, timeout=5.0)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("email"):
+                    verified_email = data["email"]
+                    if payload.full_name is None:
+                        payload.full_name = data.get("user_metadata", {}).get("full_name")
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired Supabase OAuth session token"
+                )
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+
+    user = db_store.get_user_by_email(verified_email)
     
     if not user:
-        full_name = payload.full_name or payload.email.split("@")[0].capitalize()
+        full_name = payload.full_name or verified_email.split("@")[0].capitalize()
         random_pwd = str(uuid.uuid4())
         user = db_store.create_user(
-            email=payload.email,
+            email=verified_email,
             password=random_pwd,
             full_name=full_name
         )
         
-        email_domain = payload.email.split("@")[-1].lower()
+        email_domain = verified_email.split("@")[-1].lower()
         matched_univ_id = "univ-1"
         for univ in db_store.universities.values():
             if univ.email_domain and univ.email_domain.lower() == email_domain and univ.is_active:
                 matched_univ_id = univ.id
                 break
         
+        # NEVER grant ADMIN, UNIVERSITY_OWNER, or SUPER_ADMIN via OAuth
         db_store.create_membership(
             user_id=user["id"],
             university_id=matched_univ_id,
