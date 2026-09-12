@@ -302,3 +302,39 @@ def test_large_dataset_performance_benchmark():
     assert count == 10000
     assert execution_time_ms < 20.0  # Sub-20ms requirement for 10K rows
     conn.close()
+
+# --- 9. M20.5.2 PRIVILEGED GOOGLE OAUTH SECURITY TEST ---
+def test_m20_privileged_account_google_oauth_security():
+    # 1. Test unlinked Super Admin Google OAuth -> Must return HTTP 403 Forbidden
+    res_super = client.post("/api/v1/auth/oauth/google", json={
+        "email": "superadmin@campusfix.ai",
+        "full_name": "Super Admin Spoof",
+        "provider_id": "google-unlinked-super-123"
+    })
+    assert res_super.status_code == 403
+    assert "Privileged accounts" in res_super.json()["detail"]
+
+    # 2. Test unlinked Admin user Google OAuth -> Must return HTTP 403 Forbidden
+    univ = db_store.create_university("Security Univ", "https://sec.edu", "sec.edu", "US")
+    admin_user = db_store.create_user("admin@sec.edu", "AdminPassword123!", "Sec Admin")
+    db_store.create_membership(admin_user["id"], univ.id, UserRole.ADMIN)
+
+    res_admin = client.post("/api/v1/auth/oauth/google", json={
+        "email": "admin@sec.edu",
+        "full_name": "Admin Spoof",
+        "provider_id": "google-unlinked-admin-456"
+    })
+    assert res_admin.status_code == 403
+    assert "Privileged accounts" in res_admin.json()["detail"]
+
+    # 3. Test New Student Google OAuth -> Creates STUDENT membership ONLY
+    res_new_student = client.post("/api/v1/auth/oauth/google", json={
+        "email": "student@sec.edu",
+        "full_name": "New Student",
+        "provider_id": "google-student-789"
+    })
+    assert res_new_student.status_code == 200
+    data = res_new_student.json()
+    assert data["user"]["email"] == "student@sec.edu"
+    assert len(data["memberships"]) == 1
+    assert data["memberships"][0]["role"] == UserRole.STUDENT

@@ -76,6 +76,14 @@ class InMemoryStore:
                 return u
         return None
 
+    def get_user_by_supabase_id(self, supabase_user_id: str) -> Optional[dict]:
+        if not supabase_user_id:
+            return None
+        for u in self.users.values():
+            if u.get("supabase_user_id") == supabase_user_id or u.get("google_sub") == supabase_user_id:
+                return u
+        return None
+
     def create_user(self, email: str, password: str, full_name: str, is_super_admin: bool = False) -> dict:
         user_id = str(uuid.uuid4())
         hashed = self.hash_password(password)

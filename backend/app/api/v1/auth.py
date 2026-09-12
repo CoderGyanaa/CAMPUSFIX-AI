@@ -97,6 +97,7 @@ def login(payload: LoginRequest):
 @router.post("/oauth/google", response_model=LoginResponse)
 def google_oauth_exchange(payload: GoogleOAuthExchangePayload):
     verified_email = payload.email
+    supabase_user_id = payload.provider_id
 
     # Server-Side Identity Verification: If supabase_token is provided, verify against Supabase Auth API
     if payload.supabase_token and settings.SUPABASE_URL:
@@ -112,6 +113,7 @@ def google_oauth_exchange(payload: GoogleOAuthExchangePayload):
                 data = response.json()
                 if data.get("email"):
                     verified_email = data["email"]
+                    supabase_user_id = data.get("id") or supabase_user_id
                     if payload.full_name is None:
                         payload.full_name = data.get("user_metadata", {}).get("full_name")
             else:
@@ -124,8 +126,34 @@ def google_oauth_exchange(payload: GoogleOAuthExchangePayload):
         except Exception:
             pass
 
-    user = db_store.get_user_by_email(verified_email)
-    
+    # 1. First lookup by explicitly linked Supabase OAuth user ID
+    user = None
+    if supabase_user_id:
+        user = db_store.get_user_by_supabase_id(supabase_user_id)
+
+    # 2. If not found by Supabase user ID, lookup by verified email
+    if not user:
+        user_by_email = db_store.get_user_by_email(verified_email)
+        if user_by_email:
+            # Check if this account holds privileged roles (ADMIN, UNIVERSITY_OWNER, SUPER_ADMIN)
+            existing_mems = db_store.get_user_memberships(user_by_email["id"])
+            is_privileged = user_by_email.get("is_super_admin", False) or any(
+                m.role in [UserRole.ADMIN, UserRole.UNIVERSITY_OWNER, UserRole.SUPER_ADMIN] for m in existing_mems
+            )
+
+            # Security Enforcement: Unlinked Google OAuth MUST NOT grant access to privileged accounts
+            if is_privileged and user_by_email.get("supabase_user_id") != supabase_user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Privileged accounts (Admin / Owner / Super Admin) cannot be accessed via unlinked Google OAuth. Please sign in using your official account password."
+                )
+
+            # Link Supabase user ID to student account for future logins
+            user = user_by_email
+            if supabase_user_id and not user.get("supabase_user_id"):
+                user["supabase_user_id"] = supabase_user_id
+
+    # 3. If user still does not exist, create a new STUDENT account safely
     if not user:
         full_name = payload.full_name or verified_email.split("@")[0].capitalize()
         random_pwd = str(uuid.uuid4())
@@ -134,14 +162,16 @@ def google_oauth_exchange(payload: GoogleOAuthExchangePayload):
             password=random_pwd,
             full_name=full_name
         )
-        
+        if supabase_user_id:
+            user["supabase_user_id"] = supabase_user_id
+
         email_domain = verified_email.split("@")[-1].lower()
         matched_univ_id = "univ-1"
         for univ in db_store.universities.values():
             if univ.email_domain and univ.email_domain.lower() == email_domain and univ.is_active:
                 matched_univ_id = univ.id
                 break
-        
+
         # NEVER grant ADMIN, UNIVERSITY_OWNER, or SUPER_ADMIN via OAuth
         db_store.create_membership(
             user_id=user["id"],
