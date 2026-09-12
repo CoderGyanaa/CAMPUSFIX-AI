@@ -28,6 +28,37 @@ interface AuthContextType {
   isAuthenticated: boolean;
 }
 
+export const getRoleDashboardPath = (
+  user: UserProfile | null,
+  memberships: UserMembership[],
+  activeUniversityId?: string | null
+): string => {
+  if (!user) return '/login';
+  if (user.is_super_admin) return '/platform/dashboard';
+
+  const activeMem = memberships.find(
+    (m) => m.status === 'ACTIVE' && (!activeUniversityId || m.university_id === activeUniversityId)
+  ) || memberships.find((m) => m.status === 'ACTIVE');
+
+  if (!activeMem) {
+    if (user.is_super_admin) return '/platform/dashboard';
+    return '/student/dashboard';
+  }
+
+  switch (activeMem.role) {
+    case 'SUPER_ADMIN':
+      return '/platform/dashboard';
+    case 'UNIVERSITY_OWNER':
+      return '/owner/dashboard';
+    case 'ADMIN':
+      return '/admin/dashboard';
+    case 'STUDENT':
+      return '/student/dashboard';
+    default:
+      return '/student/dashboard';
+  }
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

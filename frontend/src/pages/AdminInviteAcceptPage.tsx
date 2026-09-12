@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { UserCheck, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
@@ -49,9 +50,9 @@ export const AdminInviteAcceptPage: React.FC = () => {
             <p className="text-xs text-slate-300">
               Your administrator account is now active. You can sign in using your official email and private password.
             </p>
-            <a href="/#login" className="inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-4 py-2 rounded-lg transition mt-2">
+            <Link to="/login" className="inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-4 py-2 rounded-lg transition mt-2">
               Go to Sign In
-            </a>
+            </Link>
           </div>
         ) : (
           <form onSubmit={handleActivate} className="space-y-4 text-xs">

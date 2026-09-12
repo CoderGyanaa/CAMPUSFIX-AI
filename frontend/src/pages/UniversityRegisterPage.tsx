@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Building2, CheckCircle2, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
@@ -43,9 +44,9 @@ export const UniversityRegisterPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-6">
       <div className="max-w-2xl w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6">
-        <a href="/" className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-emerald-400 transition">
+        <Link to="/" className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-emerald-400 transition">
           <ArrowLeft className="w-4 h-4" /> Back to Home
-        </a>
+        </Link>
 
         <div>
           <div className="flex items-center gap-3 mb-2">

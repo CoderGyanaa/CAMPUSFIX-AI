@@ -49,6 +49,7 @@ export default function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LandingPage scrollToLogin={true} />} />
           <Route path="/register-university" element={<UniversityRegisterPage />} />
           <Route path="/accept-invite" element={<AdminInviteAcceptPage />} />
 
