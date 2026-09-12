@@ -2,9 +2,16 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute, RoleGuard } from './components/auth/Guards';
+
+// Public Landing & Authentication Pages
 import { LandingPage } from './pages/LandingPage';
+import { LoginPage } from './pages/auth/LoginPage';
+import { StudentLoginPage } from './pages/auth/StudentLoginPage';
+import { StudentSignupPage } from './pages/auth/StudentSignupPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+import { AdminLoginPage } from './pages/auth/AdminLoginPage';
 import { UniversityRegisterPage } from './pages/UniversityRegisterPage';
-import { SuperAdminPage } from './pages/SuperAdminPage';
 import { AdminInviteAcceptPage } from './pages/AdminInviteAcceptPage';
 
 // Super Admin Platform Administration Layout & Pages
@@ -49,7 +56,13 @@ export default function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LandingPage scrollToLogin={true} />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/student/login" element={<StudentLoginPage />} />
+          <Route path="/student/signup" element={<StudentSignupPage />} />
+          <Route path="/student/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/student/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/universities/register" element={<UniversityRegisterPage />} />
           <Route path="/register-university" element={<UniversityRegisterPage />} />
           <Route path="/accept-invite" element={<AdminInviteAcceptPage />} />
 

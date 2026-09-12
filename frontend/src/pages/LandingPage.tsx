@@ -1,97 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShieldCheck, Building2, GraduationCap, Lock, ArrowRight, Sparkles } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ShieldCheck, Building2, GraduationCap, Lock, ArrowRight, Sparkles, MapPin, Zap, Award, Layers } from 'lucide-react';
 import { useAuth, getRoleDashboardPath } from '../context/AuthContext';
 
-interface LandingPageProps {
-  scrollToLogin?: boolean;
-}
-
-export const LandingPage: React.FC<LandingPageProps> = ({ scrollToLogin = false }) => {
+export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, memberships, activeUniversityId, login, isAuthenticated } = useAuth();
+  const { user, memberships, activeUniversityId, isAuthenticated, isLoading } = useAuth();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  // If user is already authenticated, automatically route them to their role dashboard
+  // If already authenticated and session initialized, route to assigned role dashboard
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (!isLoading && isAuthenticated && user) {
       const dest = getRoleDashboardPath(user, memberships, activeUniversityId);
       navigate(dest, { replace: true });
     }
-  }, [isAuthenticated, user, memberships, activeUniversityId, navigate]);
-
-  // Handle scrolling to #login if explicitly requested via prop or hash or /login path
-  useEffect(() => {
-    if (scrollToLogin || location.hash === '#login' || location.pathname === '/login') {
-      const loginEl = document.getElementById('login');
-      if (loginEl) {
-        loginEl.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
-  }, [scrollToLogin, location]);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSubmitting(true);
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || 'Login failed');
-      }
-
-      const data = await res.json();
-      login(data.access_token, data.user, data.memberships);
-
-      const targetPath = getRoleDashboardPath(data.user, data.memberships);
-      navigate(targetPath, { replace: true });
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handlePortalClick = (portalRole: 'STUDENT' | 'ADMIN' | 'REGISTER') => {
-    if (portalRole === 'REGISTER') {
-      navigate('/register-university');
-      return;
-    }
-
-    if (isAuthenticated && user) {
-      const dest = getRoleDashboardPath(user, memberships, activeUniversityId);
-      navigate(dest);
-      return;
-    }
-
-    // Scroll smoothly to sign in box if unauthenticated
-    const loginEl = document.getElementById('login');
-    if (loginEl) {
-      loginEl.scrollIntoView({ behavior: 'smooth' });
-      const emailInput = document.getElementById('email-input');
-      if (emailInput) {
-        emailInput.focus();
-      }
-    }
-  };
+  }, [isLoading, isAuthenticated, user, memberships, activeUniversityId, navigate]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Navigation Bar */}
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
+      {/* Public Header Bar */}
+      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-3">
             <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
@@ -99,111 +26,168 @@ export const LandingPage: React.FC<LandingPageProps> = ({ scrollToLogin = false 
             </div>
             <span className="font-bold text-xl tracking-tight text-white">CampusFix AI</span>
           </Link>
-          <div className="flex items-center gap-4 text-xs font-medium">
-            <Link to="/register-university" className="text-slate-300 hover:text-emerald-400 transition">
-              Register Your University
+
+          <nav className="flex items-center gap-6 text-xs font-medium">
+            <Link to="/" className="text-white font-semibold hover:text-emerald-400 transition hidden sm:inline-block">
+              Home
             </Link>
-            <button
-              onClick={() => handlePortalClick('STUDENT')}
+            <Link to="/student/login" className="text-slate-300 hover:text-emerald-400 transition hidden sm:inline-block">
+              Student Portal
+            </Link>
+            <Link to="/admin/login" className="text-slate-300 hover:text-sky-400 transition hidden md:inline-block">
+              University / Admin
+            </Link>
+            <Link to="/universities/register" className="text-slate-300 hover:text-emerald-400 transition hidden lg:inline-block">
+              Register University
+            </Link>
+            <Link
+              to="/login"
               className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg transition font-semibold"
             >
               Sign In
-            </button>
-          </div>
+            </Link>
+          </nav>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="flex-1 max-w-6xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-12 items-center">
-        <div className="space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" /> AI-Powered Sustainability Operations
+      {/* Main Public Product Hero */}
+      <main className="flex-1">
+        <section className="max-w-6xl mx-auto px-6 py-20 text-center space-y-8">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-xs font-semibold">
+            <Sparkles className="w-4 h-4" /> AI-Powered Campus Sustainability & Facilities Platform
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            See It. Report It. <br />
-            <span className="text-emerald-400">Fix It.</span> Make Campus Better.
+
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white leading-tight max-w-4xl mx-auto">
+            See It. Report It. <span className="text-emerald-400">Fix It.</span> <br />
+            Make Campus Better Together.
           </h1>
-          <p className="text-slate-400 text-base leading-relaxed">
-            CampusFix AI bridges student observations with university facilities management. Driven by AI triage, spatial proximity checks, and verified community impact.
+
+          <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+            CampusFix AI bridges student observations with university facilities management. Driven by Gemini AI triage, spatial proximity checks, and verified community impact.
           </p>
 
-          <div className="grid grid-cols-2 gap-4 pt-4 text-xs">
-            <button
-              onClick={() => handlePortalClick('STUDENT')}
-              className="text-left bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-500/50 p-4 rounded-xl space-y-1 transition group cursor-pointer"
+          {/* Action CTAs */}
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+            <Link
+              to="/student/login"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-semibold text-sm transition shadow-lg shadow-emerald-900/20 flex items-center gap-2"
             >
-              <div className="font-semibold text-white flex items-center gap-2 group-hover:text-emerald-400 transition">
-                <GraduationCap className="w-4 h-4 text-emerald-400" /> Student Portal
-              </div>
-              <p className="text-slate-400 text-[11px]">Report issues, confirm nearby leaks, earn verified points.</p>
-            </button>
-            <button
-              onClick={() => handlePortalClick('ADMIN')}
-              className="text-left bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-sky-500/50 p-4 rounded-xl space-y-1 transition group cursor-pointer"
+              <GraduationCap className="w-5 h-5" /> Student Portal
+            </Link>
+            <Link
+              to="/admin/login"
+              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-6 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-2"
             >
-              <div className="font-semibold text-white flex items-center gap-2 group-hover:text-sky-400 transition">
-                <Building2 className="w-4 h-4 text-sky-400" /> University Admin
+              <Building2 className="w-5 h-5 text-sky-400" /> University Admin
+            </Link>
+            <Link
+              to="/universities/register"
+              className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white px-6 py-3 rounded-xl font-semibold text-sm transition"
+            >
+              Register University
+            </Link>
+          </div>
+        </section>
+
+        {/* Feature Cards Section */}
+        <section className="max-w-6xl mx-auto px-6 py-16 border-t border-slate-800/80">
+          <div className="text-center mb-12 space-y-2">
+            <h2 className="text-2xl font-bold text-white">Engineered for Campus Impact</h2>
+            <p className="text-xs text-slate-400">AI Triage • Spatial Proximity • Row-Level Multi-Tenant Security</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Feature 1 */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+              <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl w-fit border border-emerald-500/20">
+                <Zap className="w-6 h-6" />
               </div>
-              <p className="text-slate-400 text-[11px]">Operational priority queue, department assignment & RLS security.</p>
-            </button>
-          </div>
-        </div>
-
-        {/* Login Card */}
-        <div id="login" className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6 scroll-mt-24">
-          <div>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Lock className="w-5 h-5 text-emerald-400" /> Account Sign In
-            </h2>
-            <p className="text-xs text-slate-400 mt-1">Access your CampusFix AI portal account</p>
-          </div>
-
-          {error && <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-lg">{error}</div>}
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Official Email</label>
-              <input
-                id="email-input"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@university.edu"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-              />
+              <h3 className="text-lg font-bold text-white">AI-Driven Issue Triage</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Gemini 2.5 Flash automatically categorizes reports, assesses urgency, and estimates priority based on environmental risk.
+              </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm py-2.5 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {submitting ? 'Signing In...' : 'Sign In'} <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
+            {/* Feature 2 */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+              <div className="p-3 bg-sky-500/10 text-sky-400 rounded-xl w-fit border border-sky-500/20">
+                <MapPin className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Spatial Proximity & Verification</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                PostGIS spatial queries detect nearby duplicates within 50 meters, enabling instant student confirmations and points.
+              </p>
+            </div>
 
-          <div className="border-t border-slate-800 pt-4 flex justify-between text-xs text-slate-400">
-            <Link to="/register-university" className="hover:text-emerald-400 transition">Register University</Link>
-            <Link to="/login" className="hover:text-emerald-400 transition">Sign In Options</Link>
+            {/* Feature 3 */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+              <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl w-fit border border-purple-500/20">
+                <Award className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Verified Gamification</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Earn sustainability points, unlock achievement badges, and view campus-wide SDG sustainability impact analytics.
+              </p>
+            </div>
           </div>
-        </div>
+        </section>
+
+        {/* Portal Selection Section */}
+        <section className="max-w-6xl mx-auto px-6 py-16 border-t border-slate-800/80">
+          <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 md:p-12 grid md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-4">
+              <h2 className="text-3xl font-extrabold text-white">Choose Your Portal Entry</h2>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Select your role to access student observations, facilities management, or university onboarding.
+              </p>
+              <div className="pt-2 flex flex-wrap gap-3 text-xs">
+                <Link to="/student/signup" className="text-emerald-400 hover:underline font-semibold">
+                  Need a Student Account? Sign Up →
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4 text-xs">
+              <Link
+                to="/student/login"
+                className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 p-5 rounded-2xl space-y-2 transition group"
+              >
+                <div className="font-semibold text-white flex items-center gap-2 group-hover:text-emerald-400 transition">
+                  <GraduationCap className="w-5 h-5 text-emerald-400" /> Student Portal
+                </div>
+                <p className="text-slate-400 text-[11px]">Submit observations, confirm nearby reports, view leaderboard.</p>
+                <span className="text-emerald-400 text-[11px] font-semibold flex items-center gap-1 pt-1">
+                  Student Sign In <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </Link>
+
+              <Link
+                to="/admin/login"
+                className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-sky-500/50 p-5 rounded-2xl space-y-2 transition group"
+              >
+                <div className="font-semibold text-white flex items-center gap-2 group-hover:text-sky-400 transition">
+                  <Building2 className="w-5 h-5 text-sky-400" /> University Admin
+                </div>
+                <p className="text-slate-400 text-[11px]">Department issue queue, status updates & operational analytics.</p>
+                <span className="text-sky-400 text-[11px] font-semibold flex items-center gap-1 pt-1">
+                  Admin Sign In <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
-        CampusFix AI Platform • Milestone M2 Authentication & Multi-Tenant Security Built
+      <footer className="border-t border-slate-800 py-8 text-center text-xs text-slate-500 space-y-2">
+        <div>CampusFix AI Platform • Multi-Tenant Sustainability & Facilities Operations</div>
+        <div className="flex justify-center gap-4 text-slate-400 pt-1">
+          <Link to="/login" className="hover:text-emerald-400 transition">Account Sign In</Link>
+          <span>•</span>
+          <Link to="/student/signup" className="hover:text-emerald-400 transition">Student Sign Up</Link>
+          <span>•</span>
+          <Link to="/universities/register" className="hover:text-emerald-400 transition">Register University</Link>
+        </div>
       </footer>
     </div>
   );

@@ -3,7 +3,16 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export const ProtectedRoute: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center font-sans">
+        <div className="text-xs font-mono text-slate-400 animate-pulse">Initializing Session...</div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -11,7 +20,15 @@ export const ProtectedRoute: React.FC = () => {
 };
 
 export const RoleGuard: React.FC<{ allowedRoles: string[] }> = ({ allowedRoles }) => {
-  const { user, memberships, activeUniversityId } = useAuth();
+  const { user, memberships, activeUniversityId, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center font-sans">
+        <div className="text-xs font-mono text-slate-400 animate-pulse">Verifying Roles...</div>
+      </div>
+    );
+  }
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -19,7 +36,7 @@ export const RoleGuard: React.FC<{ allowedRoles: string[] }> = ({ allowedRoles }
     return <Outlet />;
   }
 
-  const activeMem = memberships.find((m) => m.university_id === activeUniversityId && m.status === 'ACTIVE');
+  const activeMem = memberships.find((m) => m.university_id === activeUniversityId && m.status === 'ACTIVE') || memberships.find((m) => m.status === 'ACTIVE');
 
   if (!activeMem || !allowedRoles.includes(activeMem.role)) {
     return (

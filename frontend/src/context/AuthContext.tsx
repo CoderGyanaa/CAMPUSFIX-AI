@@ -26,6 +26,7 @@ interface AuthContextType {
   login: (token: string, user: UserProfile, memberships: UserMembership[]) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 export const getRoleDashboardPath = (
@@ -62,18 +63,32 @@ export const getRoleDashboardPath = (
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('campusfix_token'));
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('campusfix_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [memberships, setMemberships] = useState<UserMembership[]>(() => {
-    const saved = localStorage.getItem('campusfix_memberships');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [activeUniversityId, setActiveUniversityId] = useState<string | null>(() => {
-    return localStorage.getItem('campusfix_univ_id') || (memberships[0]?.university_id ?? null);
-  });
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [memberships, setMemberships] = useState<UserMembership[]>([]);
+  const [activeUniversityId, setActiveUniversityId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    try {
+      const savedToken = localStorage.getItem('campusfix_token');
+      const savedUser = localStorage.getItem('campusfix_user');
+      const savedMemberships = localStorage.getItem('campusfix_memberships');
+      const savedUnivId = localStorage.getItem('campusfix_univ_id');
+
+      if (savedToken && savedUser) {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+        const parsedMems = savedMemberships ? JSON.parse(savedMemberships) : [];
+        setMemberships(parsedMems);
+        setActiveUniversityId(savedUnivId || (parsedMems[0]?.university_id ?? null));
+      }
+    } catch (e) {
+      console.error('Failed to parse stored auth credentials', e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const login = (newToken: string, newUser: UserProfile, newMemberships: UserMembership[]) => {
     setToken(newToken);
@@ -109,7 +124,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setActiveUniversityId,
         login,
         logout,
-        isAuthenticated: !!token && !!user
+        isAuthenticated: !!token && !!user,
+        isLoading
       }}
     >
       {children}
