@@ -99,7 +99,7 @@ class InMemoryStore:
         self.users[user_id] = user_dict
         return user_dict
 
-    def create_university(self, name: str, website: str, email_domain: str, country: str) -> University:
+    def create_university(self, name: str, website: str, email_domain: str, country: str, latitude: Optional[float] = None, longitude: Optional[float] = None, address: Optional[str] = None) -> University:
         univ_id = str(uuid.uuid4())
         univ = University(
             id=univ_id,
@@ -107,6 +107,9 @@ class InMemoryStore:
             official_website=website,
             email_domain=email_domain.lower(),
             country=country,
+            latitude=latitude,
+            longitude=longitude,
+            address=address,
             is_active=True,
             created_at=datetime.utcnow().isoformat()
         )

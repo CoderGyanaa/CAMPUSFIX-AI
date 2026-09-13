@@ -161,6 +161,7 @@ export const StudentDashboard: React.FC = () => {
             pins={mapPins}
             selectedIssueId={selectedIssueId}
             onSelectIssue={(issueId) => setSelectedIssueId(issueId)}
+            campusCenter={summary?.campus_center}
           />
         </div>
 

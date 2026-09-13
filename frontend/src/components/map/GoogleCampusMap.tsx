@@ -22,10 +22,18 @@ export interface MapIssuePin {
   building_name: string;
 }
 
+export interface CampusCenter {
+  latitude: number;
+  longitude: number;
+  name?: string;
+  country?: string;
+}
+
 interface GoogleCampusMapProps {
   pins: MapIssuePin[];
   selectedIssueId: string | null;
   onSelectIssue: (issueId: string) => void;
+  campusCenter?: CampusCenter | null;
   apiKey?: string;
 }
 
@@ -33,6 +41,7 @@ export const GoogleCampusMap: React.FC<GoogleCampusMapProps> = ({
   pins,
   selectedIssueId,
   onSelectIssue,
+  campusCenter,
   apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -80,9 +89,11 @@ export const GoogleCampusMap: React.FC<GoogleCampusMapProps> = ({
     if (!mapLoaded || !mapRef.current || !window.google || !window.google.maps) return;
 
     if (!googleMapInstanceRef.current) {
-      const defaultCenter = validPins.length > 0
-        ? { lat: validPins[0].latitude, lng: validPins[0].longitude }
-        : { lat: 37.7749, lng: -122.4194 };
+      const defaultCenter = (campusCenter?.latitude && campusCenter?.longitude)
+        ? { lat: campusCenter.latitude, lng: campusCenter.longitude }
+        : (validPins.length > 0
+            ? { lat: validPins[0].latitude, lng: validPins[0].longitude }
+            : { lat: 37.7749, lng: -122.4194 });
 
       const map = new window.google.maps.Map(mapRef.current, {
         center: defaultCenter,
@@ -126,10 +137,50 @@ export const GoogleCampusMap: React.FC<GoogleCampusMapProps> = ({
     Object.values(markersRef.current).forEach((m) => m.setMap(null));
     markersRef.current = {};
 
-    if (validPins.length === 0) return;
-
     const bounds = new window.google.maps.LatLngBounds();
+    let hasCenter = false;
 
+    // Plot Campus Center Landmark
+    if (campusCenter?.latitude && campusCenter?.longitude) {
+      const centerPos = { lat: campusCenter.latitude, lng: campusCenter.longitude };
+      bounds.extend(centerPos);
+      hasCenter = true;
+
+      const campusMarker = new window.google.maps.Marker({
+        position: centerPos,
+        map,
+        title: `${campusCenter.name || 'Campus'} (Campus Center)`,
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 9,
+          fillColor: '#2563eb', // Royal Blue
+          fillOpacity: 1,
+          strokeWeight: 3,
+          strokeColor: '#ffffff'
+        },
+        zIndex: 1000
+      });
+
+      const infoContent = `
+        <div style="font-family: system-ui, sans-serif; padding: 6px; color: #0f172a; max-width: 200px;">
+          <div style="font-weight: 800; font-size: 13px; color: #1e40af; margin-bottom: 2px;">
+            🏛️ ${campusCenter.name || 'Active Campus'}
+          </div>
+          <div style="font-size: 11px; color: #475569;">
+            Authoritative Campus Center Location
+          </div>
+        </div>
+      `;
+
+      campusMarker.addListener('click', () => {
+        infoWindowRef.current.setContent(infoContent);
+        infoWindowRef.current.open(map, campusMarker);
+      });
+
+      markersRef.current['campus-center'] = campusMarker;
+    }
+
+    // Plot Issue Pins
     validPins.forEach((pin) => {
       const pos = { lat: pin.latitude, lng: pin.longitude };
       bounds.extend(pos);
@@ -140,7 +191,6 @@ export const GoogleCampusMap: React.FC<GoogleCampusMapProps> = ({
       else if (prio === 'HIGH') pinColor = '#f59e0b';
       else if (prio === 'MEDIUM') pinColor = '#0284c7';
 
-      // SVG Custom Pin Marker Icon
       const svgMarker = {
         path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
         fillColor: pinColor,
@@ -181,13 +231,18 @@ export const GoogleCampusMap: React.FC<GoogleCampusMapProps> = ({
       markersRef.current[pin.id] = marker;
     });
 
-    if (validPins.length > 1) {
-      map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+    // Zoom / Bounds Handling
+    const totalPoints = validPins.length + (hasCenter ? 1 : 0);
+    if (totalPoints > 1) {
+      map.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+    } else if (campusCenter?.latitude && campusCenter?.longitude) {
+      map.setCenter({ lat: campusCenter.latitude, lng: campusCenter.longitude });
+      map.setZoom(15);
     } else if (validPins.length === 1) {
       map.setCenter({ lat: validPins[0].latitude, lng: validPins[0].longitude });
       map.setZoom(16);
     }
-  }, [mapLoaded, validPins]);
+  }, [mapLoaded, validPins, campusCenter]);
 
   // 4. Pan & Highlight on selectedIssueId change
   useEffect(() => {

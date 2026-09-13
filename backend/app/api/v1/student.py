@@ -95,6 +95,26 @@ def get_student_dashboard_summary(context: dict = Depends(RequireRole([UserRole.
     univ_id = membership.university_id
 
     profile = db_store.student_profiles.get(user["id"], {})
+    univ = db_store.get_university(univ_id)
+
+    # Determine authoritative active campus location coordinates
+    campus_lat = getattr(univ, "latitude", None) if univ else None
+    campus_lng = getattr(univ, "longitude", None) if univ else None
+
+    # Fallback to centroid of existing issue pins if explicit lat/lng missing on university
+    if (campus_lat is None or campus_lng is None) and univ_id:
+        univ_locs = [
+            loc for i in db_store.issues.values() if i.get("university_id") == univ_id
+            for loc in [db_store.locations.get(i.get("location_id"))] if loc and "latitude" in loc and "longitude" in loc
+        ]
+        if univ_locs:
+            campus_lat = sum(l["latitude"] for l in univ_locs) / len(univ_locs)
+            campus_lng = sum(l["longitude"] for l in univ_locs) / len(univ_locs)
+
+    # Final fallback if still None
+    if campus_lat is None or campus_lng is None:
+        campus_lat = 37.7749
+        campus_lng = -122.4194
 
     # Calculate real snapshot metrics
     univ_issues = db_store.tenant_issues.get(univ_id, [])
@@ -103,6 +123,13 @@ def get_student_dashboard_summary(context: dict = Depends(RequireRole([UserRole.
     return {
         "greeting": f"Welcome back, {user['full_name']}!",
         "university_id": univ_id,
+        "university_name": univ.name if univ else "University",
+        "campus_center": {
+            "latitude": campus_lat,
+            "longitude": campus_lng,
+            "name": univ.name if univ else "Campus Center",
+            "country": univ.country if univ else ""
+        },
         "personal_stats": {
           "points": profile.get("points", 0),
           "rank": profile.get("rank", 1),

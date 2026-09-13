@@ -28,6 +28,9 @@ class University(BaseModel):
     official_website: str
     email_domain: str
     country: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    address: Optional[str] = None
     is_active: bool = True
     created_at: str
 
