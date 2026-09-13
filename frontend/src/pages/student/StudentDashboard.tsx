@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Award, TrendingUp, CheckCircle2, AlertTriangle, PlusCircle, MapPin, Activity, Layers, Bell, Eye } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../config';
 import { ReportWizardModal } from '../../components/report/ReportWizardModal';
-import { CampusMap, MapIssuePin } from '../../components/map/CampusMap';
+import { GoogleCampusMap, MapIssuePin } from '../../components/map/GoogleCampusMap';
 import { StudentIssueDetailDrawer } from '../../components/student/StudentIssueDetailDrawer';
 import { formatNotificationForStudent } from '../../utils/notificationFormatter';
 
@@ -15,6 +15,7 @@ export const StudentDashboard: React.FC = () => {
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const issueCardsRef = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const fetchDashboardData = async () => {
     if (!token || !activeUniversityId) return;
@@ -53,6 +54,13 @@ export const StudentDashboard: React.FC = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [token, activeUniversityId]);
+
+  // Scroll corresponding issue card into view when selected from Google Map marker
+  useEffect(() => {
+    if (selectedIssueId && issueCardsRef.current[selectedIssueId]) {
+      issueCardsRef.current[selectedIssueId]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedIssueId]);
 
   const getPriorityBadgeClass = (prio?: string) => {
     switch (prio?.toUpperCase()) {
@@ -145,76 +153,94 @@ export const StudentDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. Part A — Real Campus Issues Map Component */}
-      <CampusMap
-        pins={mapPins}
-        selectedIssueId={selectedIssueId}
-        onSelectIssue={(issueId) => setSelectedIssueId(issueId)}
-      />
-
-      {/* 5. Part B — Shared Campus Issues Grid */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-3">
-          <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Layers className="w-5 h-5 text-emerald-400" /> Campus Issues
-            </h3>
-            <p className="text-xs text-slate-400">Shared issues reported across your university campus</p>
-          </div>
-          <div className="text-[11px] font-mono text-slate-400 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
-            {mapPins.length} Active {mapPins.length === 1 ? 'Issue' : 'Issues'}
-          </div>
+      {/* 4. Two-Column Campus Issues & Interactive Google Map */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left ~65–70%: Google Map */}
+        <div className="lg:col-span-8">
+          <GoogleCampusMap
+            pins={mapPins}
+            selectedIssueId={selectedIssueId}
+            onSelectIssue={(issueId) => setSelectedIssueId(issueId)}
+          />
         </div>
 
-        {mapPins.length === 0 ? (
-          <div className="p-8 text-center bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-2">
-            <Layers className="w-8 h-8 mx-auto text-slate-600 mb-1" />
-            <p className="text-xs text-slate-300 font-medium">No reported issues in your campus yet.</p>
-            <p className="text-[11px] text-slate-500">When campus issues are reported by students, they will appear here for community confirmation.</p>
+        {/* Right ~30–35%: Independently Scrollable Campus Issues Panel */}
+        <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between max-h-[500px]">
+          <div className="border-b border-slate-800 pb-3 mb-3 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Layers className="w-4 h-4 text-emerald-400" /> Campus Issues
+              </h3>
+              <p className="text-[11px] text-slate-400">Shared issues reported across campus</p>
+            </div>
+            <span className="text-[10px] font-mono text-slate-400 bg-slate-950 px-2.5 py-0.5 rounded-md border border-slate-800 font-semibold">
+              {mapPins.length} Active
+            </span>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mapPins.map((pin) => {
-              const hasCoords = typeof pin.latitude === 'number' && typeof pin.longitude === 'number' && !(pin.latitude === 0 && pin.longitude === 0);
-              return (
-                <div
-                  key={pin.id}
-                  onClick={() => setSelectedIssueId(pin.id)}
-                  className="bg-slate-950/90 border border-slate-800 p-4 rounded-xl space-y-3 transition shadow-md hover:border-emerald-500/50 cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono font-bold text-emerald-400">
-                      #{pin.master_issue_number || pin.id.slice(0, 6)}
-                    </span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${getPriorityBadgeClass(pin.final_admin_priority || pin.ai_priority || pin.student_priority)}`}>
-                      {pin.final_admin_priority || pin.ai_priority || pin.student_priority}
-                    </span>
-                  </div>
 
-                  <h4 className="text-xs font-bold text-slate-200 group-hover:text-emerald-400 transition-colors line-clamp-1">{pin.title}</h4>
-                  
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                    <span className="flex items-center gap-1 text-slate-400">
-                      <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
-                      {hasCoords ? pin.building_name : 'Location unavailable'}
-                    </span>
-                    <span className="font-mono text-[10px] uppercase text-purple-400 font-semibold">{pin.category}</span>
-                  </div>
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+            {mapPins.length === 0 ? (
+              <div className="p-6 text-center bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-2 my-auto">
+                <Layers className="w-6 h-6 mx-auto text-slate-600 mb-1" />
+                <p className="text-xs text-slate-300 font-medium">No reported issues in your campus yet.</p>
+                <p className="text-[11px] text-slate-500">When campus issues are reported by students, they will appear here for community confirmation.</p>
+              </div>
+            ) : (
+              mapPins.map((pin) => {
+                const hasCoords = typeof pin.latitude === 'number' && typeof pin.longitude === 'number' && !(pin.latitude === 0 && pin.longitude === 0);
+                const isSelected = selectedIssueId === pin.id;
 
-                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-                    <span className="uppercase font-mono text-emerald-400 font-bold">{pin.status}</span>
-                    <span className="text-slate-400 hover:text-emerald-300 font-medium flex items-center gap-1">
-                      <Eye className="w-3 h-3" /> View & Confirm
-                    </span>
+                return (
+                  <div
+                    key={pin.id}
+                    ref={(el) => (issueCardsRef.current[pin.id] = el)}
+                    onClick={() => setSelectedIssueId(pin.id)}
+                    className={`p-3.5 rounded-xl border transition cursor-pointer space-y-2 ${
+                      isSelected
+                        ? 'bg-slate-950/90 border-emerald-500 shadow-md ring-1 ring-emerald-500/30'
+                        : 'bg-slate-950/60 border-slate-800/90 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono font-bold text-emerald-400">
+                        #{pin.master_issue_number || pin.id.slice(0, 5)}
+                      </span>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase ${getPriorityBadgeClass(pin.final_admin_priority || pin.ai_priority || pin.student_priority)}`}>
+                        {pin.final_admin_priority || pin.ai_priority || pin.student_priority}
+                      </span>
+                    </div>
+
+                    <h4 className="text-xs font-bold text-slate-200 line-clamp-1">{pin.title}</h4>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                        {hasCoords ? pin.building_name : 'Location unavailable'}
+                      </span>
+                      <span className="font-mono text-[10px] uppercase text-purple-400">{pin.category}</span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                      <span className="uppercase font-mono text-emerald-400 font-semibold">{pin.status}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedIssueId(pin.id);
+                        }}
+                        className="text-slate-300 hover:text-emerald-400 font-medium flex items-center gap-1 transition"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> View & Confirm
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* 6. Recent Campus Activity */}
+      {/* 5. Recent Campus Activity */}
       {recentNotifications.length > 0 && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
           <div className="flex justify-between items-center border-b border-slate-800 pb-3">
