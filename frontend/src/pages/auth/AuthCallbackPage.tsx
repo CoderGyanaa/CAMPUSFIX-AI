@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { API_BASE_URL } from '../../config';
@@ -9,8 +9,51 @@ export const AuthCallbackPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    const processGoogleUser = async (
+      email: string,
+      supabaseToken: string,
+      fullName?: string,
+      providerId?: string
+    ) => {
+      if (isProcessingRef.current) return;
+      isProcessingRef.current = true;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/auth/oauth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            supabase_token: supabaseToken,
+            full_name: fullName,
+            provider_id: providerId,
+            provider: 'google'
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.detail || 'Google account verification failed on backend');
+        }
+
+        const loginData = await res.json();
+        login(loginData.access_token, loginData.user, loginData.memberships);
+
+        const targetPath = getRoleDashboardPath(loginData.user, loginData.memberships);
+        navigate(targetPath, { replace: true });
+      } catch (err: any) {
+        console.error('OAuth Callback Error:', err);
+        setError(err.message || 'Failed to complete Google Sign-In');
+        isProcessingRef.current = false;
+      }
+    };
+
     const handleAuthCallback = async () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -19,54 +62,49 @@ export const AuthCallbackPage: React.FC = () => {
           throw new Error(sessionError.message);
         }
 
-        if (!session || !session.user || !session.user.email) {
-          // If session is not immediately available, listen for state change once
-          const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-            if (newSession && newSession.user && newSession.user.email) {
-              authListener.subscription.unsubscribe();
-              await processGoogleUser(newSession.user.email, newSession.user.user_metadata?.full_name);
-            }
-          });
-
-          // Timeout fallback if no session is returned
-          setTimeout(() => {
-            setError('Google authentication timed out or was cancelled. Please try signing in again.');
-          }, 6000);
+        if (session && session.user && session.user.email && session.access_token) {
+          await processGoogleUser(
+            session.user.email,
+            session.access_token,
+            session.user.user_metadata?.full_name,
+            session.user.id
+          );
           return;
         }
 
-        await processGoogleUser(session.user.email, session.access_token, session.user.user_metadata?.full_name);
+        // If session is not immediately available, listen for auth state change
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+          if (newSession && newSession.user && newSession.user.email && newSession.access_token) {
+            if (subscription) subscription.unsubscribe();
+            if (timerId) clearTimeout(timerId);
+            await processGoogleUser(
+              newSession.user.email,
+              newSession.access_token,
+              newSession.user.user_metadata?.full_name,
+              newSession.user.id
+            );
+          }
+        });
+        subscription = authListener.subscription;
+
+        // Timeout fallback if no session is returned after waiting
+        timerId = setTimeout(() => {
+          if (!isProcessingRef.current) {
+            setError('Google authentication timed out or was cancelled. Please try signing in again.');
+          }
+        }, 8000);
       } catch (err: any) {
         console.error('OAuth Callback Error:', err);
         setError(err.message || 'Failed to complete Google Sign-In');
       }
     };
 
-    const processGoogleUser = async (email: string, supabaseToken: string, fullName?: string) => {
-      const res = await fetch(`${API_BASE_URL}/api/v1/auth/oauth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          supabase_token: supabaseToken,
-          full_name: fullName,
-          provider: 'google'
-        })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || 'Google account verification failed on backend');
-      }
-
-      const loginData = await res.json();
-      login(loginData.access_token, loginData.user, loginData.memberships);
-
-      const targetPath = getRoleDashboardPath(loginData.user, loginData.memberships);
-      navigate(targetPath, { replace: true });
-    };
-
     handleAuthCallback();
+
+    return () => {
+      if (subscription) subscription.unsubscribe();
+      if (timerId) clearTimeout(timerId);
+    };
   }, [login, navigate]);
 
   return (
