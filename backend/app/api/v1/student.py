@@ -200,3 +200,10 @@ def get_student_notifications(context: dict = Depends(RequireRole([UserRole.STUD
 
     my_notes = [n for n in db_store.notifications if n.get("user_id") == user["id"] and n.get("university_id") == univ_id]
     return {"notifications": my_notes}
+
+@router.get("/map-issues")
+def get_student_map_issues(context: dict = Depends(RequireRole([UserRole.STUDENT]))):
+    membership = context["membership"]
+    univ_id = membership.university_id
+    return db_store.get_admin_map_issues(university_id=univ_id)
+

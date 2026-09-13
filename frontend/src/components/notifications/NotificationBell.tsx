@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Bell, Check, ExternalLink, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { API_BASE_URL } from '../../config';
+import { formatNotificationForStudent } from '../../utils/notificationFormatter';
 
 interface NotificationItem {
   id: string;
@@ -19,6 +21,7 @@ interface NotificationItem {
 }
 
 export const NotificationBell: React.FC = () => {
+  const navigate = useNavigate();
   const { token, user, activeUniversityId } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -171,33 +174,49 @@ export const NotificationBell: React.FC = () => {
                 <p>No notifications yet</p>
               </div>
             ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className={`p-3.5 space-y-1 transition text-xs ${
-                    !n.is_read ? 'bg-slate-800/40 border-l-2 border-teal-500' : 'hover:bg-slate-800/20'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-semibold text-slate-200 line-clamp-1">{n.title}</span>
-                    {!n.is_read && (
-                      <button
-                        onClick={() => handleMarkAsRead(n.id)}
-                        className="text-slate-500 hover:text-teal-400 p-0.5 transition shrink-0"
-                        title="Mark as read"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+              notifications.map((n) => {
+                const formatted = formatNotificationForStudent(n.type, n.title, n.message, n.category);
+                return (
+                  <div
+                    key={n.id}
+                    className={`p-3.5 space-y-1 transition text-xs ${
+                      !n.is_read ? 'bg-slate-800/40 border-l-2 border-teal-500' : 'hover:bg-slate-800/20'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-semibold text-slate-200 line-clamp-1">{formatted.friendlyTitle}</span>
+                      {!n.is_read && (
+                        <button
+                          onClick={() => handleMarkAsRead(n.id)}
+                          className="text-slate-500 hover:text-teal-400 p-0.5 transition shrink-0"
+                          title="Mark as read"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-2">{formatted.friendlyMessage}</p>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 font-mono">
+                      <span>{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="uppercase text-purple-400">{formatted.badgeLabel}</span>
+                    </div>
                   </div>
-                  <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-2">{n.message}</p>
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 font-mono">
-                    <span>{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    <span className="uppercase text-purple-400">{n.category}</span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
+          </div>
+
+          <div className="p-2.5 bg-slate-950/80 border-t border-slate-800 text-center">
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/student/notifications');
+              }}
+              className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition flex items-center justify-center gap-1 mx-auto"
+            >
+              <span>View all notifications</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}

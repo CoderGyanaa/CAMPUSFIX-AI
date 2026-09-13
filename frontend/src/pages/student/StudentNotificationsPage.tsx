@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Bell, Check, CheckCheck, Settings, Filter, ShieldCheck, Mail, Smartphone, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../config';
+import { formatNotificationForStudent } from '../../utils/notificationFormatter';
 
 interface NotificationItem {
   id: string;
@@ -246,47 +247,50 @@ export const StudentNotificationsPage: React.FC = () => {
                 <p>No notifications found matching selected filters.</p>
               </div>
             ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className={`p-4 rounded-xl border transition space-y-2 ${
-                    !n.is_read
-                      ? 'bg-slate-900/90 border-teal-500/40 shadow-sm'
-                      : 'bg-slate-900/40 border-slate-800/80 text-slate-400'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">{n.title}</span>
-                        <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-md border ${
-                          n.category === 'REWARD' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
-                          n.category === 'COMMUNITY' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                          n.category === 'BROADCAST' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                          'bg-teal-500/10 text-teal-400 border-teal-500/20'
-                        }`}>
-                          {n.category}
-                        </span>
+              notifications.map((n) => {
+                const formatted = formatNotificationForStudent(n.type, n.title, n.message, n.category);
+                return (
+                  <div
+                    key={n.id}
+                    className={`p-4 rounded-xl border transition space-y-2 ${
+                      !n.is_read
+                        ? 'bg-slate-900/90 border-teal-500/40 shadow-sm'
+                        : 'bg-slate-900/40 border-slate-800/80 text-slate-400'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white">{formatted.friendlyTitle}</span>
+                          <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-md border ${
+                            n.category === 'REWARD' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                            n.category === 'COMMUNITY' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                            n.category === 'BROADCAST' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                            'bg-teal-500/10 text-teal-400 border-teal-500/20'
+                          }`}>
+                            {formatted.badgeLabel}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed">{formatted.friendlyMessage}</p>
                       </div>
-                      <p className="text-xs text-slate-300 leading-relaxed">{n.message}</p>
+
+                      {!n.is_read && (
+                        <button
+                          onClick={() => handleMarkAsRead(n.id)}
+                          className="flex items-center gap-1 text-xs text-slate-400 hover:text-teal-400 bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg transition shrink-0"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Mark Read
+                        </button>
+                      )}
                     </div>
 
-                    {!n.is_read && (
-                      <button
-                        onClick={() => handleMarkAsRead(n.id)}
-                        className="flex items-center gap-1 text-xs text-slate-400 hover:text-teal-400 bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg transition shrink-0"
-                      >
-                        <Check className="w-3.5 h-3.5" /> Mark Read
-                      </button>
-                    )}
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-1">
+                      <span>{new Date(n.created_at).toLocaleString()}</span>
+                      <span>Received</span>
+                    </div>
                   </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-1">
-                    <span>Timestamp: {new Date(n.created_at).toLocaleString()}</span>
-                    <span>Status: {n.delivery_status}</span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

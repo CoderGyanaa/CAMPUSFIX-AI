@@ -52,18 +52,6 @@ export const StudentLayout: React.FC = () => {
 
             <NotificationBell />
 
-            <NavLink
-              to="/student/notifications"
-              className={({ isActive }) =>
-                `p-2 rounded-lg transition ${
-                  isActive ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                }`
-              }
-              title="Full Notifications Inbox"
-            >
-              <Bell className="w-4 h-4" />
-            </NavLink>
-
             <button
               onClick={logout}
               className="flex items-center gap-1.5 px-3 py-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition ml-2"
