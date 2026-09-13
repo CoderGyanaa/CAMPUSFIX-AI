@@ -1,29 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Award, TrendingUp, CheckCircle2, AlertTriangle, PlusCircle, MapPin, Activity, Layers, Bell, ExternalLink } from 'lucide-react';
+import { Award, TrendingUp, CheckCircle2, AlertTriangle, PlusCircle, MapPin, Activity, Layers, Bell, Eye } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../config';
 import { ReportWizardModal } from '../../components/report/ReportWizardModal';
+import { CampusMap, MapIssuePin } from '../../components/map/CampusMap';
+import { StudentIssueDetailDrawer } from '../../components/student/StudentIssueDetailDrawer';
 import { formatNotificationForStudent } from '../../utils/notificationFormatter';
-
-interface MapPinItem {
-  id: string;
-  master_issue_number?: number;
-  title: string;
-  category: string;
-  status: string;
-  student_priority: string;
-  ai_priority?: string;
-  final_admin_priority?: string;
-  latitude: number;
-  longitude: number;
-  building_name: string;
-}
 
 export const StudentDashboard: React.FC = () => {
   const { token, activeUniversityId } = useAuth();
   const [summary, setSummary] = useState<any>(null);
-  const [mapPins, setMapPins] = useState<MapPinItem[]>([]);
+  const [mapPins, setMapPins] = useState<MapIssuePin[]>([]);
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
@@ -42,7 +31,7 @@ export const StudentDashboard: React.FC = () => {
         setSummary(await summaryRes.json());
       }
 
-      // 2. Fetch Map Issues
+      // 2. Fetch Shared Campus Map Issues
       const mapRes = await fetch(`${API_BASE_URL}/api/v1/student/map-issues`, { headers });
       if (mapRes.ok) {
         setMapPins(await mapRes.json());
@@ -79,7 +68,7 @@ export const StudentDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* 1. Welcome / Current Campus Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -156,17 +145,24 @@ export const StudentDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. Campus Map Section */}
+      {/* 4. Part A — Real Campus Issues Map Component */}
+      <CampusMap
+        pins={mapPins}
+        selectedIssueId={selectedIssueId}
+        onSelectIssue={(issueId) => setSelectedIssueId(issueId)}
+      />
+
+      {/* 5. Part B — Shared Campus Issues Grid */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-3">
           <div>
             <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-emerald-400" /> Campus Issues Map
+              <Layers className="w-5 h-5 text-emerald-400" /> Campus Issues
             </h3>
-            <p className="text-xs text-slate-400">Geospatial location of active reported issues across your campus</p>
+            <p className="text-xs text-slate-400">Shared issues reported across your university campus</p>
           </div>
           <div className="text-[11px] font-mono text-slate-400 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
-            {mapPins.length} Reported {mapPins.length === 1 ? 'Location' : 'Locations'}
+            {mapPins.length} Active {mapPins.length === 1 ? 'Issue' : 'Issues'}
           </div>
         </div>
 
@@ -174,15 +170,17 @@ export const StudentDashboard: React.FC = () => {
           <div className="p-8 text-center bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-2">
             <Layers className="w-8 h-8 mx-auto text-slate-600 mb-1" />
             <p className="text-xs text-slate-300 font-medium">No reported issues in your campus yet.</p>
-            <p className="text-[11px] text-slate-500">When campus issues are reported, they will appear here on your campus map.</p>
+            <p className="text-[11px] text-slate-500">When campus issues are reported by students, they will appear here for community confirmation.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {mapPins.map((pin) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {mapPins.map((pin) => {
+              const hasCoords = typeof pin.latitude === 'number' && typeof pin.longitude === 'number' && !(pin.latitude === 0 && pin.longitude === 0);
+              return (
                 <div
                   key={pin.id}
-                  className="bg-slate-950/90 border border-slate-800 p-4 rounded-xl space-y-2 transition shadow-md hover:border-emerald-500/40"
+                  onClick={() => setSelectedIssueId(pin.id)}
+                  className="bg-slate-950/90 border border-slate-800 p-4 rounded-xl space-y-3 transition shadow-md hover:border-emerald-500/50 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono font-bold text-emerald-400">
@@ -193,22 +191,30 @@ export const StudentDashboard: React.FC = () => {
                     </span>
                   </div>
 
-                  <h4 className="text-xs font-bold text-slate-200">{pin.title}</h4>
+                  <h4 className="text-xs font-bold text-slate-200 group-hover:text-emerald-400 transition-colors line-clamp-1">{pin.title}</h4>
+                  
                   <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-emerald-400" />
-                      {pin.building_name}
+                    <span className="flex items-center gap-1 text-slate-400">
+                      <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                      {hasCoords ? pin.building_name : 'Location unavailable'}
                     </span>
-                    <span className="font-mono text-[10px] uppercase text-purple-400">{pin.category}</span>
+                    <span className="font-mono text-[10px] uppercase text-purple-400 font-semibold">{pin.category}</span>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                    <span className="uppercase font-mono text-emerald-400 font-bold">{pin.status}</span>
+                    <span className="text-slate-400 hover:text-emerald-300 font-medium flex items-center gap-1">
+                      <Eye className="w-3 h-3" /> View & Confirm
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* 5. Recent Campus Activity */}
+      {/* 6. Recent Campus Activity */}
       {recentNotifications.length > 0 && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
           <div className="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -235,6 +241,13 @@ export const StudentDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Student Issue Detail Drawer */}
+      <StudentIssueDetailDrawer
+        issueId={selectedIssueId}
+        onClose={() => setSelectedIssueId(null)}
+        onIssueConfirmed={fetchDashboardData}
+      />
 
       {/* Report Wizard Modal */}
       <ReportWizardModal
