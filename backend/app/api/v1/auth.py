@@ -6,6 +6,7 @@ from app.models.domain import (
     StudentSignupRequest, LoginRequest, LoginResponse, GoogleOAuthExchangePayload,
     ForgotPasswordPayload, ResetPasswordPayload, UserProfile, UserRole, MembershipStatus
 )
+from app.core.config import settings
 from app.core.security import create_access_token
 from app.api.deps import get_current_user
 
